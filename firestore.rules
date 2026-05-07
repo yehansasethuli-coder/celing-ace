@@ -1,0 +1,102 @@
+
+/**
+ * @file firestore.rules
+ * @description Security rules for the Ceiling Ace Firestore database.
+ *
+ * @section Core Philosophy
+ * This ruleset enforces a strict user-ownership model for personal data, while allowing
+ * public, read-only access to global application content. A special admin role is defined
+ * to allow designated users to manage all other users.
+ *
+ * @section Data Structure
+ * 1.  `/users/{userId}`: Stores public profiles and role information for all users.
+ * 2.  `/admins/{userId}`: A separate collection to efficiently query for admin users.
+ * 3.  `/users/{userId}/ceilingProjects/{projectId}`: User-specific, private project data.
+ * 4.  `/homeScreenImages/{imageId}`: Publicly readable home screen content.
+ *
+ * @section Key Security Decisions
+ * - Admin Supremacy: Users whose UID exists in the `/admins` collection can read/write
+ *   all user data in the `/users` collection.
+ * - User Isolation: A non-admin user can only ever interact with their own data tree.
+ * - Public Content: `homeScreenImages` is public.
+ * - Default Deny: Access not explicitly granted is denied.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Checks if the requesting user is an administrator.
+     * An admin's UID must exist as a document ID in the 'admins' collection
+     * OR their email must be the hardcoded admin email.
+     */
+    function isAdmin() {
+      let isHardcodedAdmin = request.auth.token.email == "yehansasethuli@gmail.com";
+      let isFirestoreAdmin = exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (isHardcodedAdmin || isFirestoreAdmin);
+    }
+    
+    // -------------------------------------------------------------------------
+    // Admin & User Data Collections
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Rules for the 'admins' collection. Only other admins can manage this.
+     * @path /admins/{userId}
+     */
+    match /admins/{userId} {
+      // An owner can check their own admin status. An admin can list other admins.
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      // Admins can add or remove other admins.
+      allow write: if isAdmin();
+    }
+    
+    /**
+     * @description Rules for user profile data.
+     * @path /users/{userId}
+     * @allow (get) Any signed-in user can read another user's public profile.
+     * @allow (update) A user can update their own profile. Admins can update any profile.
+     * @allow (delete) Only admins can delete user profiles.
+     */
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if true; // Allow anyone to list users to check if it's the first user during signup.
+      allow create: if isSignedIn(); // Any new user can create their profile document.
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+      
+      // --- Nested User Projects ---
+      match /ceilingProjects/{projectId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update, delete: if isExistingOwner(userId) || isAdmin();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Public App Content
+    // -------------------------------------------------------------------------
+
+    match /homeScreenImages/{imageId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

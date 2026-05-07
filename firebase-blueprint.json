@@ -1,0 +1,242 @@
+
+{
+  "entities": {
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator user with elevated privileges.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier of the user who is an admin. This matches the user's ID in Firebase Authentication."
+        },
+        "assignedAt": {
+          "type": "string",
+          "description": "The timestamp when the user was made an admin.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier for the user, matching Firebase Auth UID."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Flag indicating if the user has administrative privileges."
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Flag indicating if the user's account is disabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "The timestamp of the user's last login.",
+          "format": "date-time"
+        },
+        "autoDisablePolicy": {
+          "type": "string",
+          "description": "Policy for automatically disabling the user account.",
+          "enum": [
+            "none",
+            "one_month",
+            "one_year"
+          ]
+        }
+      },
+      "required": [
+        "uid",
+        "email"
+      ]
+    },
+    "CeilingProject": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CeilingProject",
+      "type": "object",
+      "description": "Represents a ceiling project with its dimensions and visual aspects.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CeilingProject entity."
+        },
+        "projectName": {
+          "type": "string",
+          "description": "The user-defined name for the ceiling project."
+        },
+        "length": {
+          "type": "number",
+          "description": "The length measurement of the ceiling."
+        },
+        "width": {
+          "type": "number",
+          "description": "The width measurement of the ceiling."
+        },
+        "numberOfSections": {
+          "type": "number",
+          "description": "The number of equal sections the ceiling is divided into."
+        },
+        "textureImageUri": {
+          "type": "string",
+          "description": "URI of the texture image applied to the ceiling drawing.",
+          "format": "uri"
+        },
+        "drawingData": {
+          "type": "string",
+          "description": "Data representing the generated 2D drawing of the ceiling layout."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the project was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "projectName",
+        "length",
+        "width",
+        "numberOfSections"
+      ]
+    },
+    "HomeScreenImage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HomeScreenImage",
+      "type": "object",
+      "description": "Represents the image displayed on the home screen of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the HomeScreenImage entity."
+        },
+        "imageUri": {
+          "type": "string",
+          "description": "URI of the beautifully finished ceiling image.",
+          "format": "uri"
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the image."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates whether this image is currently active and displayed on the home screen."
+        }
+      },
+      "required": [
+        "id",
+        "imageUri",
+        "isActive"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores public profile information for all users, including an isAdmin flag.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{userId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "A collection that stores the UIDs of all administrators. Document IDs are the user UIDs. Used for efficient security rule checks.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who is an admin."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/ceilingProjects/{projectId}",
+        "definition": {
+          "entityName": "CeilingProject",
+          "schema": {
+            "$ref": "#/backend/entities/CeilingProject"
+          },
+          "description": "Stores ceiling project data specific to each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who owns the ceiling project."
+            },
+            {
+              "name": "projectId",
+              "description": "The ID of the ceiling project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/homeScreenImages/{imageId}",
+        "definition": {
+          "entityName": "HomeScreenImage",
+          "schema": {
+            "$ref": "#/backend/entities/HomeScreenImage"
+          },
+          "description": "Stores images for the home screen.",
+          "params": [
+            {
+              "name": "imageId",
+              "description": "The ID of the home screen image."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure now includes a top-level `users` collection for public profiles and an `admins` collection to manage privileges. This is more scalable and secure. The `admins` collection uses Document ID as UID for fast, cost-effective security checks (`exists()`). User-specific data (`ceilingProjects`) remains nested under the user's document, maintaining Path-Based Ownership for privacy. Admins are granted broad access to manage users and content."
+  }
+}
+
+    
